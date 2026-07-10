@@ -1,0 +1,12 @@
+jupyter
+pandas
+numpy
+matplotlib
+scikit-learn
+torch
+transformers
+datasets
+evaluate
+peft
+emoji
+soynlp
