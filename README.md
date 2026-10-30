@@ -1,53 +1,76 @@
-# Shopping Review Sentiment Analysis
+# PEFT vs Full Fine-Tuning 비교 — 쇼핑 리뷰 감성 분류
 
-> **Bootcamp Mission 13** | Natural Language Processing
+> **Bootcamp Mission 13** | NLP · 파인튜닝
+> 자세한 설명: [Minseong Code Lab — 미션 13](https://minseong-code-lab.vercel.app/projects/mission-13-nlp-shopping-review-sentiment)
 
-## 미션 소개
-쇼핑몰 리뷰 텍스트의 감성을 분류하고, 전체 파인튜닝과 PEFT 방식의 차이를 비교하는 NLP 미션입니다. 모델 성능뿐 아니라 학습 비용과 효율의 관점도 함께 다룹니다.
+같은 데이터·같은 베이스 모델(`beomi/KcELECTRA-base`)로 Full Fine-Tuning과 LoRA를 학습해 비교했습니다.
+LoRA는 **학습 파라미터를 약 4%(4.4M / 109M), 저장 용량을 16.9 MB로** 줄였고,
+테스트셋 Macro F1은 Full FT보다 **0.0164 낮았습니다** (0.8454 → 0.8290).
 
-## 구현 목표
-- 리뷰 텍스트를 긍정·부정 감성으로 분류한다.
-- Full Fine-Tuning과 PEFT의 학습 방식을 비교한다.
-- 성능·자원·재사용성 관점에서 모델을 평가한다.
+## 데이터
 
-## 주요 구현 내용
-- 쇼핑 리뷰 감성 분류
-- 전체 파인튜닝 실험
-- PEFT 기반 효율적 파인튜닝 비교
+쇼핑몰 패션 리뷰 44,397건, 3개 클래스(negative 20.9% · neutral 19.6% · positive 59.6%).
+클래스 비율을 유지해 train 70 / val 15 / test 15로 나눴습니다.
 
-## 사용 기술
-- Python
-- Transformers
-- PEFT
-- NLP
-- Jupyter Notebook
+## 실험 설정
+
+| | Full Fine-Tuning | PEFT (LoRA) |
+|---|---|---|
+| 학습 대상 | 전체 파라미터 | `query` · `key` · `value` · `output.dense` 어댑터 + 분류 헤드 |
+| LoRA 설정 | — | `r=32`, `alpha=64`, `dropout=0.05` |
+| learning rate | 2e-5 | 1e-4 |
+| 공통 | epoch 3 · batch 16 · max_length 128 | |
+
+## 결과
+
+노트북 최종 셀(`notebooks/mission13.ipynb`, 셀 10)의 출력입니다. 테스트셋은 마지막에 한 번만 평가했습니다.
+
+| | Val Accuracy | Val Macro F1 | Test Accuracy | Test Macro F1 | 학습 시간 | 모델 크기 | 학습 파라미터 |
+|---|---|---|---|---|---|---|---|
+| Full Fine-Tuning | 0.8844 | **0.8489** | **0.8824** | **0.8454** | 871.5초 | 417.8 MB | 109,083,651 |
+| PEFT (LoRA) | **0.8857** | 0.8472 | 0.8713 | 0.8290 | **766.7초** | **16.9 MB** | **4,426,755** |
+
+<p>
+  <img src="./images/confusion_full_ft.png" width="49%" alt="Full Fine-Tuning 테스트셋 혼동 행렬">
+  <img src="./images/confusion_lora.png" width="49%" alt="LoRA 테스트셋 혼동 행렬">
+</p>
+
+## 결과에서 읽히는 것
+
+- **검증셋만 봤다면 결론이 반대였습니다.** Val Accuracy는 LoRA가 근소하게 높지만(0.8857 vs 0.8844), 테스트셋에서는 Full FT가 Accuracy·Macro F1 모두 앞섭니다.
+- **LoRA가 더 틀린 곳은 neutral 경계입니다.** 혼동 행렬에서 negative → neutral 오분류가 167 → 222건, neutral → positive가 236 → 299건으로 늘었습니다. 세 클래스 중 neutral의 F1이 가장 낮습니다 (Full FT 0.71, LoRA 0.68).
+- 클래스가 불균형한 데이터라 Accuracy만으로는 이 차이가 잘 보이지 않아, Macro F1을 함께 봤습니다.
+
+## 한계
+
+- 시드를 바꿔 반복 실행하지 않았습니다. 위 차이가 실행 간 변동 범위 안인지 확인하지 못했습니다.
+- LoRA 하이퍼파라미터는 한 조합만 시도했습니다.
+- 학습 시간은 같은 환경에서 순서대로 잰 값이지만, GPU 상태까지 통제한 측정은 아닙니다.
+
+이 미션에서 학습한 Full FT 모델은 [미션 16](https://github.com/malit9999/ai-model-format-conversion-mission-16)에서 양자화·ONNX 변환 대상으로 썼습니다.
 
 ## 실행 방법
+
 ```bash
 pip install -r requirements.txt
 jupyter notebook notebooks/mission13.ipynb
 ```
 
-> 데이터셋 또는 사전학습 모델이 외부에서 제공되는 경우, 실행 전에 노트북 또는 코드의 데이터 로드 설정을 확인해야 합니다.
+> 노트북 첫 셀의 데이터 경로(`DATA_DIR`)를 실행 환경에 맞게 바꿔야 합니다. 데이터는 저장소에 포함하지 않았습니다.
 
 ## 폴더 구조
+
 ```text
 notebooks/
   mission13.ipynb
+images/
+  confusion_full_ft.png
+  confusion_lora.png
 README.md
 requirements.txt
 .gitignore
 ```
 
-## 학습 내용
-- 파인튜닝 전략에 따라 학습 가능한 파라미터와 자원 요구량이 달라진다는 점
-- 감성 분류 결과는 데이터 품질과 레이블 정의에 의존한다는 점
+## 사용 기술
 
-## 트러블슈팅 및 재현 시 참고 사항
-사전학습 모델 다운로드와 GPU 환경 여부에 따라 실행 시간이 달라질 수 있습니다.
-
-## 결과 확인
-학습 전략별 감성 분류 결과는 노트북에서 확인할 수 있습니다.
-
-## 포트폴리오 관점
-이 저장소는 **Natural Language Processing** 역량을 학습·실험한 결과물입니다. 구현 범위와 실행 조건은 코드 및 노트북을 기준으로 확인할 수 있습니다.
+Python · PyTorch · Hugging Face Transformers · PEFT · scikit-learn · pandas
