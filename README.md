@@ -23,21 +23,21 @@
 - Jupyter Notebook
 
 ## 실행 방법
-`ash
+```bash
 pip install -r requirements.txt
 jupyter notebook notebooks/mission13.ipynb
-`
+```
 
 > 데이터셋 또는 사전학습 모델이 외부에서 제공되는 경우, 실행 전에 노트북 또는 코드의 데이터 로드 설정을 확인해야 합니다.
 
 ## 폴더 구조
-`	ext
+```text
 notebooks/
   mission13.ipynb
 README.md
 requirements.txt
 .gitignore
-`
+```
 
 ## 학습 내용
 - 파인튜닝 전략에 따라 학습 가능한 파라미터와 자원 요구량이 달라진다는 점
